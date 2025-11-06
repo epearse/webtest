@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Server HTML Check — It Works</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
+  <style>
+    :root { --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --fg: #0f172a; --muted:#475569; --bg:#f8fafc; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+           line-height: 1.5; color: var(--fg); background: var(--bg); display: grid; place-items: center; padding: 2rem; }
+    main { width: min(860px, 100%); background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    h1 { margin: 0 0 .5rem; font-size: clamp(1.6rem, 1.2rem + 2vw, 2.2rem); }
+    .ok { color: var(--ok); }
+    .muted { color: var(--muted); }
+    .pill { display:inline-flex; align-items:center; gap:.5rem; font-weight:600; padding:.35rem .6rem; border-radius:999px; background:#f1f5f9; }
+    .checks { display: grid; gap: .5rem; margin: 1rem 0; }
+    .check { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.6rem .75rem; border:1px solid #e2e8f0; border-radius:10px; }
+    .status { font-weight:700; }
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+    .status.bad { color: var(--bad); }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .env { background:#f8fafc; border:1px dashed #e2e8f0; border-radius:12px; padding:12px; overflow:auto; }
+    footer { margin-top: 1rem; font-size: .9rem; color: var(--muted); }
+    noscript { display:block; margin-top:.75rem; padding:.6rem .75rem; border-left:4px solid var(--bad); background:#fef2f2; }
+  </style>
+</head>
+<body>
+  <main role="main" aria-labelledby="title">
+    <header>
+      <h1 id="title">✅ It Works!</h1>
+      <div class="pill" id="js-pill" aria-live="polite">JavaScript: checking…</div>
+      <noscript><strong>Heads up:</strong> JavaScript is disabled. Enable it to run all checks.</noscript>
+      <p class="muted">Upload this file to your server (e.g., as <code>index.html</code>) to verify that HTML, CSS, and basic JS are served correctly.</p>
+    </header>
+
+    <section class="checks" aria-label="Automatic checks">
+      <div class="check"><span>HTML rendered</span><span class="status ok">OK</span></div>
+      <div class="check" id="css-check"><span>Inline CSS loaded</span><span class="status" data-status>…</span></div>
+      <div class="check" id="js-check"><span>JavaScript running</span><span class="status" data-status>…</span></div>
+      <div class="check" id="proto-check"><span>Protocol (HTTP/HTTPS)</span><span class="status" data-status>…</span></div>
+      <div class="check" id="head-check"><span>Can fetch HEAD on this page</span><span class="status" data-status>…</span></div>
+      <div class="check" id="robots-check"><span>Optional: <code>/robots.txt</code> reachable</span><span class="status" data-status>…</span></div>
+    </section>
+
+    <section aria-label="Environment info">
+      <h2 style="margin:.5rem 0 0;">Request/Client Info</h2>
+      <div class="env" id="env"><pre>Loading…</pre></div>
+    </section>
+
+    <footer>
+      <div>Generated: <time id="now"></time></div>
+      <div>Tip: If a check fails, open the browser console for details.</div>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      const $ = (s, r = document) => r.querySelector(s);
+      const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+      const set = (el, ok, msgOk = "OK", msgBad = "Failed") => {
+        el = typeof el === "string" ? $(el) : el;
+        const status = el.querySelector('[data-status]') || el.querySelector('.status');
+        if (!status) return;
+        status.textContent = ok ? msgOk : msgBad;
+        status.classList.remove('ok','bad','warn');
+        status.classList.add(ok ? 'ok' : 'bad');
+      };
+
+      // CSS check: ensure computed style applied
+      try {
+        const cssApplied = getComputedStyle(document.body).backgroundColor !== "";
+        set('#css-check', cssApplied);
+      } catch (e) {
+        set('#css-check', false);
+        console.error('CSS check error:', e);
+      }
+
+      // JS check
+      set('#js-check', true);
+      const jsPill = $('#js-pill');
+      jsPill.textContent = 'JavaScript: running';
+      jsPill.style.background = '#ecfdf5';
+      jsPill.style.border = '1px solid #bbf7d0';
+
+      // Protocol
+      const isHttps = location.protocol === 'https:';
+      set('#proto-check', true, isHttps ? 'HTTPS' : 'HTTP');
+
+      // HEAD fetch to confirm server responds (same URL)
+      (async () => {
+        try {
+          const res = await fetch(location.href, { method: 'HEAD', cache: 'no-store' });
+          const ok = res.ok;
+          set('#head-check', ok, ok ? (res.status + ' ' + res.statusText) : 'Failed');
+        } catch (e) {
+          set('#head-check', false);
+          console.error('HEAD check error:', e);
+        }
+      })();
+
+      // Optional robots.txt (same origin)
+      (async () => {
+        try {
+          const res = await fetch('/robots.txt', { method: 'GET', cache: 'no-store' });
+          const ok = res.ok;
+          set('#robots-check', ok, ok ? (res.status + ' ' + res.statusText) : 'Missing (optional)');
+          if (!ok) $('#robots-check .status').classList.add('warn');
+        } catch (e) {
+          $('#robots-check .status').textContent = 'Skipped';
+          $('#robots-check .status').classList.add('warn');
+        }
+      })();
+
+      // Environment info
+      const env = {
+        url: location.href,
+        protocol: location.protocol.replace(':',''),
+        host: location.host,
+        path: location.pathname + location.search + location.hash,
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        cookiesEnabled: navigator.cookieEnabled,
+        online: navigator.onLine,
+        screen: { width: screen.width, height: screen.height, pixelRatio: window.devicePixelRatio || 1 },
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      };
+      $('#env').innerHTML = '<pre>' + JSON.stringify(env, null, 2) + '</pre>';
+      $('#now').textContent = new Date().toString();
+    })();
+  </script>
+</body>
+</html>
